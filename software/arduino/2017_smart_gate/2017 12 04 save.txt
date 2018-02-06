@@ -1,0 +1,153 @@
+
+#include <Adafruit_NeoPixel.h>
+
+#define StatusLed       13
+#define NeoPixelPin      9
+#define Taster01        11
+#define BT_Vcc          10
+#define ad_channel_bat   2
+
+#define NeoPixelAmount   64
+
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NeoPixelAmount, NeoPixelPin, NEO_GRB + NEO_KHZ800);
+
+int   state = 1;
+
+int   T1_state = 1;
+int   T1_counter = 0;
+
+int   r, g, b = 0;
+int   intensitaet = 1;
+int   blink_counter = 0;
+int   muster = 0b11111111;
+
+float u_bat;
+int   u_bat_raw;
+int   low_bat[7] = {25, 0, 0, 750, 5.05, 250, 0};       // r, g, b, intensität, ref-level, treshhold, counter
+
+unsigned long time;
+unsigned long last_lap;
+unsigned long this_lap;
+
+
+
+
+void setup() 
+{
+  pinMode(StatusLed,   OUTPUT);
+  pinMode(NeoPixelPin, OUTPUT);
+  pinMode(Taster01,    INPUT_PULLUP);
+  pixels.begin();                             // Initialisierung der NeoPixel
+  Serial.begin(9600);                         //  setup serial for debugging
+
+  pinMode(BT_Vcc,      OUTPUT);
+  digitalWrite(BT_Vcc, HIGH);
+}
+
+
+
+
+void loop()
+{
+  check_inputs();
+  check_battery();
+
+  switch (state)
+  {
+    case 1:
+            r = 0; g = intensitaet; b = 0;
+            muster = 0b11111111;
+            
+            if (T1_state == 0)  state = 2;
+            else                state = 1;
+            
+            break;
+            
+    case 2:
+            if (blink_counter == 0)
+              blink_counter = 2;
+              
+            if (blink_counter % 2 == 1)
+            {              
+              r = intensitaet; g = 0; b = 0;
+              muster = 0b10101010;
+              blink_counter--;
+            }
+            else
+            {              
+              r = 0; g = 0; b = intensitaet;
+              muster = 0b01010101;
+              blink_counter--;
+            }
+
+            if ((blink_counter == 0) and (T1_state == 1))
+              { state = 1; last_lap = time; time = millis(); this_lap = time - last_lap; Serial.print("lap time: "); Serial.println(this_lap/1000.0); }
+              
+            break;
+  }
+
+  update_leds();
+    
+  delay(50);
+}
+
+
+
+
+void check_inputs()
+{
+  T1_state = digitalRead(Taster01);    
+}
+
+
+
+
+void check_battery()
+{
+  int amount = 5;
+  int ad_value[amount];
+  for (int i=0; i<amount; i++)
+    ad_value[i] = analogRead(ad_channel_bat);
+  u_bat_raw = 0;
+  for (int i=0; i<amount; i++)
+    u_bat_raw = u_bat_raw + ad_value[i];
+  u_bat_raw = u_bat_raw / amount;
+  // Serial.println(u_bat_raw);
+  // 740 -> 3,5V
+  // 880 -> 4,2V
+}
+
+
+
+
+void show_low_bat()
+{
+  if (u_bat_raw < low_bat[3])
+  {
+    low_bat[6]++;
+    if (low_bat[6] > low_bat[5])
+    {      
+     pixels.setPixelColor(0, pixels.Color(low_bat[0], low_bat[1], low_bat[2]));
+     pixels.setPixelColor(7, pixels.Color(low_bat[0], low_bat[1], low_bat[2]));
+     u_bat = (low_bat[4] * u_bat_raw / 1024.0);
+     Serial.println(u_bat);
+    }
+  }
+  else
+    low_bat[6] = 0;
+}
+
+
+
+
+void update_leds()
+{
+  for (int i=0; i<NeoPixelAmount; i++)
+    if (muster & (1<<i))
+      pixels.setPixelColor(i, pixels.Color(r,g,b));
+    else
+      pixels.setPixelColor(i, pixels.Color(0,0,0));
+  
+  show_low_bat();
+  pixels.show();
+}
