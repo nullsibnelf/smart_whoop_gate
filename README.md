@@ -10,5 +10,6 @@ Goals:
 - only the active gate is green, all other red
 - first gate tracks roundtimes, output via serial connection (could be extendet to bluetooth or wifi)
 - detection via rssi of the fpv-camera signal of the copter
-
+- running on LiPo with monitoring and warning of deep discharge
+- chargeable via micro-USB plug
 
