@@ -14,11 +14,11 @@ RF24 radio(7, 8);                   // CE, CSN
 
 const byte address[6] = "00001";
 
-int node_nr = 1;          // <------------------------------- Muss später aus dem Eprom geholt und gespeichert werden
-
+int node_nr = 0;
 int level = 0;
 int pull_timer = 0;
 const int pull_timer_max = 100;
+int radio_input = 0;
 
 
 
@@ -26,9 +26,8 @@ const int pull_timer_max = 100;
 void setup() 
 {
   radio.begin();
-  radio.openWritingPipe(address);
+  radio.openReadingPipe(0, address);
   radio.setPALevel(RF24_PA_HIGH);
-  radio.stopListening();
   
   pinMode(Taster, INPUT_PULLUP);
   
@@ -65,19 +64,55 @@ void loop()
               if (pull_timer == pull_timer_max)
               { while(digitalRead(Taster) == 0);
                 level++;  pull_timer = 0;  }
-                
-              break;            
+              
+              break;
     case 1:                                               // Node-Config Menu
               for (int i=0; i<NeoPixelAmount; i++)        // background for submenu in blue
               { pixels.setPixelColor(i, 0, 0, 5);  }
 
-              pixels.setPixelColor(node_nr, 5, 0, 0);     // Node Number in red
-                
+              radio.startListening();
+              if (radio.available())
+              {
+                radio.read(&radio_input, sizeof(radio_input));
+                node_nr = radio_input +1;
+              }
+              
+              if (digitalRead(Taster) == 0)
+              {
+                radio.stopListening();
+                radio.openWritingPipe(address);
+                radio.write(&node_nr, sizeof(node_nr));
+                while(digitalRead(Taster) == 0);
+                level++;
+              }
+              
+              break;
+    case 2:                                                 // NodeNummer anzeigen und auf finish warten bzw finish senden
+              for (int i=0; i<NeoPixelAmount; i++)
+              { pixels.setPixelColor(i, 0, 0, 0);  }
+              
+              pixels.setPixelColor(node_nr, 0, 5, 0);
+              
+              /*  auf rx gehen
+               *  wenn ich nummer 1 und taste, dann finish senden
+               *  in startmodus gehen.
+               *  farbe entsprechend ausgeben (rt oder gelb blinkend)
+              */
+              
+              break;
+    case 3:                                                 // rennen starten -
+                                                            // Zeitmessung mit Überflug starten
+    
+              
               break;
   }
 
   pixels.show();
   delay(10);  
+
+  // Peeper ?
+  // Akku Überwachung implementieren
+  // On Off über Schalter (Unterbrechung vor StepUp)
 }
 
 
