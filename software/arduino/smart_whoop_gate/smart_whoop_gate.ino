@@ -45,9 +45,14 @@ void setup()
 
 // 127 -> start pairing
 // 126 -> stop pairing
+// 125 -> abort pairing
 
 
-
+void soft_reset (void)
+{
+  node_nr = 0;
+  my_node_nr = 0;
+}
 
 void loop()
 {
@@ -55,6 +60,8 @@ void loop()
   switch(level)
   {
     case 0:                                                       // Start Menu
+              soft_reset();
+              
               if (pull_timer == 0)
               { for (int i=0; i<NeoPixelAmount; i++)              // background for submenu is 
                 { pixels.setPixelColor(i, 5, 5, 5);  }  }         // white
@@ -78,14 +85,29 @@ void loop()
 
               if (radio.available())                              //
               { radio.read(&radio_input, sizeof(radio_input));    //
-                node_nr = radio_input +1;  }                      // other node enqued, increment possible own node number
+                if (radio_input == 125)                           //
+                { level = 0;  }                                   // master node forced abort and return to main menu
+                else                                              //
+                { node_nr = radio_input +1;  }                    // other node enqued, increment possible own node number
+              }
               
               if (digitalRead(Pushbutton) == 0)                   //
-              { send_radio(node_nr);                              // send my own node number
-                my_node_nr = node_nr;                             //
-                while(digitalRead(Pushbutton) == 0);              // debounce
-                delay(100);                                       //
-                level++;  }                                       //
+              { int i=0;
+                while(digitalRead(Pushbutton) == 0)               // debounce
+                {  i++; delay(100);  }
+                if (i < 10)                                       // short press
+                {                                                 //
+                  send_radio(node_nr);                            // send my own node number
+                  my_node_nr = node_nr;                           //
+                  delay(100);                                     //
+                  level++;                                        //
+                }
+                else                                              // long press
+                {                                                 //
+                  level = 0;                                      // go to main menu
+                  send_radio(125);                                // send abort signal to all other nodes
+                }                                                 //
+              }
               
               break;
     case 2:                                                       // Node number visualisation
@@ -100,8 +122,11 @@ void loop()
               
               if (radio.available())                              //
               { radio.read(&radio_input, sizeof(radio_input));    //
-                if (radio_input == 126)                           // master-node (1st) forces to exit config-mode
-                { level++;  }  }                                  //
+                if (radio_input == 126)                           // master-node (1st) forces to exit config-mode and go to race-mode
+                { level++;  }                                     //
+                else if (radio_input == 125)                      // master-node forces to abort and go to main menu
+                { level = 0;  }                                   //
+              }
               
               break;
     case 3:                                                       // show gates in prestart condition (with gate-number in white)
