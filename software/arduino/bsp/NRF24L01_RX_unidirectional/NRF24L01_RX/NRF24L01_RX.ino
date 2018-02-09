@@ -49,22 +49,6 @@ void loop()
   {
     int text = 4;
     radio.read(&text, sizeof(text));
-
-    if (text == 48)
-    {      
-      Serial.println("null");
-      pixels.setPixelColor(1, 0, 5, 0);
-    }
-    else if (text == 49)
-    {
-      Serial.println("eins");
-      pixels.setPixelColor(1, 5, 0, 0);
-    }
-    else
-    {
-      Serial.println(text);
-    }
-    
-    pixels.show();
+    Serial.println(text);
   }
 }
