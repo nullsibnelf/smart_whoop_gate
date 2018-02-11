@@ -8,12 +8,15 @@
 #define NeoPixelPin    3
 #define NeoPixelAmount 8
 #define Pushbutton     9
+#define ad_channel_bat 3
 
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NeoPixelAmount, NeoPixelPin, NEO_GRB + NEO_KHZ800);
 RF24 radio(7, 8);                                                 // CE, CSN of wifi module
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NeoPixelAmount, NeoPixelPin, NEO_GRB + NEO_KHZ800);
 
+float u_bat;
+int   u_bat_raw;
+int   low_bat[7] = {25, 0, 0, 750, 5.05, 250, 0};                 // r, g, b, intensität, ref-level, treshhold, counter
 const byte address[6] = "00001";                                  // wifi net name
-
 int node_nr = 0;
 int my_node_nr = 0;
 int level = 0;
@@ -34,11 +37,8 @@ void setup()
   pinMode(Pushbutton, INPUT_PULLUP);                              // hw init
   pinMode(NeoPixelVCC, OUTPUT);
   digitalWrite(NeoPixelVCC, HIGH);
-  pinMode(NeoPixelPin, OUTPUT);
-  
+  pinMode(NeoPixelPin, OUTPUT);  
   pixels.begin();                                                 // init of NeoPixel
-  pixels.setPixelColor(0, 5, 5, 5);
-  pixels.show();
   
 //Serial.begin(9600);                                             // setup serial for debugging
 }
@@ -63,7 +63,7 @@ void loop()
               soft_reset();
               
               if (pull_timer == 0)
-              { for (int i=0; i<NeoPixelAmount; i++)              // background for submenu is 
+              { for (int i=1; i<NeoPixelAmount; i++)              // background for submenu is 
                 { pixels.setPixelColor(i, 5, 5, 5);  }  }         // white
               else                                                //
               { show_bar(pull_timer);  }                          // debounce visualisation
@@ -80,7 +80,7 @@ void loop()
               
               break;
     case 1:                                                       // Node-Config Menu
-              for (int i=0; i<NeoPixelAmount; i++)                // background for submenu is
+              for (int i=1; i<NeoPixelAmount; i++)                // background for submenu is
               { pixels.setPixelColor(i, 0, 0, 5);  }              // blue
 
               if (radio.available())                              //
@@ -111,9 +111,9 @@ void loop()
               
               break;
     case 2:                                                       // Node number visualisation
-              for (int i=0; i<NeoPixelAmount; i++)                // background for submenu is
+              for (int i=1; i<NeoPixelAmount; i++)                // background for submenu is
               { pixels.setPixelColor(i, 0, 0, 0);  }              // black
-              pixels.setPixelColor(my_node_nr, 0, 5, 0);          // show own node number in green
+              pixels.setPixelColor(my_node_nr+1, 0, 5, 0);          // show own node number in green
 
               if ((my_node_nr == 0) and (digitalRead(Pushbutton) == 0))   //User wants to exit config mode
               { send_radio(126);                                  // send command for exit of config-mode to other nodes
@@ -130,12 +130,12 @@ void loop()
               
               break;
     case 3:                                                       // show gates in prestart condition (with gate-number in white)
-              for (int i=0; i<NeoPixelAmount; i++)                //
+              for (int i=1; i<NeoPixelAmount; i++)                //
               { if (my_node_nr > 0)                               // all gates are
                 {  pixels.setPixelColor(i, 5, 0, 0);  }           // red
                 else                                              //
                 {  pixels.setPixelColor(i, 0, 5, 0);  }  }        // first gate is green
-              pixels.setPixelColor(node_nr, 5, 5, 5);             // gate number is white
+              pixels.setPixelColor(node_nr+1, 5, 5, 5);             // gate number is white
               level++;                                            //
                                         
               break;
@@ -144,6 +144,8 @@ void loop()
               break;
   }
 
+  check_battery();
+  show_low_bat();
   pixels.show();
   delay(10);  
   
@@ -165,9 +167,9 @@ void loop()
 
 void show_bar (int amount)
 {
-  amount = map(amount, 0, pull_timer_max, 0, NeoPixelAmount);
+  amount = map(amount, 0, pull_timer_max, 0, NeoPixelAmount-1);
   for (int i=0; i<=amount; i++)
-    pixels.setPixelColor(i, 5, 0, 0);
+    pixels.setPixelColor(i+1, 5, 0, 0);
 }
 
 
@@ -180,5 +182,42 @@ void send_radio (int buffer_)
   radio.write(&buffer_, sizeof(buffer_));  
   radio.openReadingPipe(0, address);
   radio.startListening();
+}
+
+
+
+
+void check_battery()
+{
+  int amount = 5;
+  int ad_value[amount];
+  for (int i=0; i<amount; i++)
+    ad_value[i] = analogRead(ad_channel_bat);
+  u_bat_raw = 0;
+  for (int i=0; i<amount; i++)
+    u_bat_raw = u_bat_raw + ad_value[i];
+  u_bat_raw = u_bat_raw / amount;
+  // Serial.println(u_bat_raw);
+  // 740 -> 3,5V
+  // 880 -> 4,2V
+}
+
+
+
+
+void show_low_bat()
+{
+  if (u_bat_raw < low_bat[3])
+  {
+    low_bat[6]++;
+    if (low_bat[6] > low_bat[5])
+    {      
+     pixels.setPixelColor(0, pixels.Color(low_bat[0], low_bat[1], low_bat[2]));
+     u_bat = (low_bat[4] * u_bat_raw / 1024.0);
+     Serial.println(u_bat);
+    }
+  }
+  else
+    low_bat[6] = 0;
 }
 
