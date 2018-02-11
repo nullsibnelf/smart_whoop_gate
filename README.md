@@ -15,7 +15,8 @@ Goals:
     
 - running on LiPo18650 with monitoring and warning of deep discharge    
 - chargeable via micro-USB plug    
-    
+
+<p>&nbsp;</p>
 
 
 achieved:    
