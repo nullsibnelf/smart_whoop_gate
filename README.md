@@ -1,7 +1,6 @@
 # smart_whoop_gate
 open source hardware - Smart Gate for microcopter like Tiny Whoop
-<br><p>
-
+    
 
 Goals:    
 - all gates are equal (same hardware and software)    
@@ -16,7 +15,7 @@ Goals:
     
 - running on LiPo18650 with monitoring and warning of deep discharge    
 - chargeable via micro-USB plug    
-<br><p>
+    
 
 
 achieved:    
